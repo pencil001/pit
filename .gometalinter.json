@@ -1,0 +1,8 @@
+{
+  "Enable": [
+    "golint"
+  ],
+  "Exclude": [
+    "exported \\w+ (\\S*['.]*)([a-zA-Z'.*]*) should have comment"
+  ]
+}
