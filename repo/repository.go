@@ -1,9 +1,15 @@
 package repo
 
 import (
+	"bytes"
+	"compress/zlib"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"path"
+	"strconv"
+	"strings"
 
 	"github.com/go-ini/ini"
 	"github.com/pencil001/pit/util"
@@ -14,7 +20,7 @@ type Repository struct {
 	gitDir   string
 }
 
-func createRepository(repoPath string, force bool) Repository {
+func createRepository(repoPath string, force bool) *Repository {
 	repo := Repository{
 		workTree: repoPath,
 		gitDir:   path.Join(repoPath, ".git"),
@@ -45,10 +51,10 @@ func createRepository(repoPath string, force bool) Repository {
 		}
 	}
 
-	return repo
+	return &repo
 }
 
-func (r Repository) initGitDir() error {
+func (r *Repository) initGitDir() error {
 	if err := util.CreateDir(path.Join(r.gitDir, "branches")); err != nil {
 		return err
 	}
@@ -93,5 +99,65 @@ func (r Repository) initGitDir() error {
 	coreSect.NewKey("bare", "false")
 	iniFile.WriteTo(fConfig)
 
+	return nil
+}
+
+func (r *Repository) saveObject(obj Object) error {
+	content := obj.ToObjectBytes()
+	sha := util.CalcSHA(content)
+	objDir := path.Join(r.gitDir, "objects", sha[:2])
+	if err := util.CreateDir(objDir); err != nil {
+		return err
+	}
+	fObj, err := util.CreateFile(path.Join(objDir, sha[2:]))
+	if err != nil {
+		return err
+	}
+	defer fObj.Close()
+
+	w := zlib.NewWriter(fObj)
+	defer w.Close()
+	_, err = w.Write(content)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *Repository) readObject(objSHA string, obj Object) error {
+	objFile := path.Join(r.gitDir, "objects", objSHA[:2], objSHA[2:])
+	isExist, err := util.IsExist(objFile)
+	if err != nil || !isExist {
+		return fmt.Errorf("Objects file %v missing", objFile)
+	}
+
+	fObj, err := os.Open(objFile)
+	if err != nil {
+		return err
+	}
+	defer fObj.Close()
+
+	var b bytes.Buffer
+	rd, err := zlib.NewReader(fObj)
+	io.Copy(&b, rd)
+	rd.Close()
+
+	objContent := b.String()
+	idxSpace := strings.Index(objContent, " ")
+	format := objContent[:idxSpace]
+	if format != obj.GetFormat() {
+		return fmt.Errorf("Type is not correct: %v", format)
+	}
+
+	idxZero := strings.Index(objContent, "\x00")
+	strSize := objContent[idxSpace+1 : idxZero]
+	size, err := strconv.Atoi(strSize)
+	if err != nil {
+		return err
+	}
+	if size != len(objContent)-idxZero-1 {
+		return fmt.Errorf("Malformed object %v: bad length", objSHA)
+	}
+	obj.Deserialize([]byte(objContent[idxZero+1:]))
 	return nil
 }
