@@ -103,7 +103,10 @@ func (r *Repository) initGitDir() error {
 }
 
 func (r *Repository) saveObject(obj Object) error {
-	content := obj.ToObjectBytes()
+	content, err := obj.ToObjectBytes()
+	if err != nil {
+		return err
+	}
 	sha := util.CalcSHA(content)
 	objDir := path.Join(r.gitDir, "objects", sha[:2])
 	if err := util.CreateDir(objDir); err != nil {
@@ -143,6 +146,10 @@ func (r *Repository) readObject(objSHA string, obj Object) error {
 	rd.Close()
 
 	objContent := b.String()
+
+	// fmt.Println(objContent)
+	// fmt.Println(hex.Dump(b.Bytes()))
+
 	idxSpace := strings.Index(objContent, " ")
 	format := objContent[:idxSpace]
 	if format != obj.GetFormat() {
@@ -158,6 +165,8 @@ func (r *Repository) readObject(objSHA string, obj Object) error {
 	if size != len(objContent)-idxZero-1 {
 		return fmt.Errorf("Malformed object %v: bad length", objSHA)
 	}
-	obj.Deserialize([]byte(objContent[idxZero+1:]))
+	if err := obj.Deserialize([]byte(objContent[idxZero+1:])); err != nil {
+		return err
+	}
 	return nil
 }

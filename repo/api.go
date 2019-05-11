@@ -1,10 +1,12 @@
 package repo
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/pencil001/pit/util"
 )
@@ -58,18 +60,23 @@ func Hash(filePath string, objType string, isStore bool) string {
 	switch objType {
 	case TypeBlob:
 		obj = createBlob(fileData)
+	case TypeCommit:
+		obj = createCommit(fileData)
 	default:
 		log.Panicf("Unknown type: %v", objType)
 	}
 
 	if isStore {
-		err := repo.saveObject(obj)
-		if err != nil {
+		if err := repo.saveObject(obj); err != nil {
 			log.Panic(err)
 		}
 	}
 
-	return util.CalcSHA(obj.ToObjectBytes())
+	bs, err := obj.ToObjectBytes()
+	if err != nil {
+		log.Panic(err)
+	}
+	return util.CalcSHA(bs)
 }
 
 func Cat(objType string, objSHA string) string {
@@ -79,6 +86,8 @@ func Cat(objType string, objSHA string) string {
 	switch objType {
 	case TypeBlob:
 		obj = createBlob(nil)
+	case TypeCommit:
+		obj = createCommit(nil)
 	default:
 		log.Panicf("Unknown type: %v", objType)
 	}
@@ -87,7 +96,22 @@ func Cat(objType string, objSHA string) string {
 	if err != nil {
 		log.Panic(err)
 	}
-	return string(obj.Serialize())
+
+	bs, err := obj.Serialize()
+	if err != nil {
+		log.Panic(err)
+	}
+	return string(bs)
+}
+
+func Log(head string) string {
+	repo := findRepo(".")
+
+	var sb strings.Builder
+	sb.WriteString("digraph pit{\n")
+	graphvizLog(&sb, repo, head, map[string]bool{})
+	sb.WriteString("}\n")
+	return sb.String()
 }
 
 func findRepo(repoPath string) *Repository {
@@ -102,4 +126,36 @@ func findRepo(repoPath string) *Repository {
 		log.Panic("No git directory.")
 	}
 	return findRepo(parentPath)
+}
+
+func graphvizLog(sb *strings.Builder, repo *Repository, sha string, seen map[string]bool) {
+	if _, ok := seen[sha]; ok {
+		return
+	}
+	seen[sha] = true
+
+	commit := createCommit(nil)
+	err := repo.readObject(sha, commit)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	isInit := true
+	var parentValue []string
+	for _, kl := range commit.kvlm {
+		if kl.key == "parent" {
+			isInit = false
+			parentValue = kl.list
+			break
+		}
+	}
+	// Base case: the initial commit.
+	if isInit {
+		return
+	}
+
+	for _, v := range parentValue {
+		sb.WriteString(fmt.Sprintf("c_%v -> c_%v;\n", sha, v))
+		graphvizLog(sb, repo, v, seen)
+	}
 }

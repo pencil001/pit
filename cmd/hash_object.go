@@ -29,9 +29,3 @@ func init() {
 	hashObjectCmd.Flags().StringVarP(&objType, "type", "t", repo.TypeBlob, "Specify the type")
 	RootCmd.AddCommand(hashObjectCmd)
 }
-
-// func hashArgs(cmd *Command, args []string) error {
-// 	if len(args) == 0 {
-// 		return fmt.Errorf("requires at least %d arg(s), only received %d", n, len(args))
-// 	}
-// }
