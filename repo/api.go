@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/pencil001/pit/util"
@@ -120,9 +121,18 @@ func findRepo(repoPath string) *Repository {
 	if isDir {
 		return createRepository(repoPath, false)
 	}
+	parentPath := path.Join(repoPath, "..")
 
-	parentPath := path.Base(repoPath)
-	if parentPath == repoPath {
+	absRepoPath, err := filepath.Abs(repoPath)
+	if err != nil {
+		log.Panic(err)
+	}
+	absParentPath, err := filepath.Abs(parentPath)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	if absParentPath == absRepoPath {
 		log.Panic("No git directory.")
 	}
 	return findRepo(parentPath)
