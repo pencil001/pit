@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/pencil001/pit/util"
 )
 
 type KList struct {
@@ -67,8 +69,8 @@ func (c *Commit) ToObjectBytes() ([]byte, error) {
 }
 
 func (c *Commit) parse(rs []rune) error {
-	idxSpace := findInRunes(rs, ' ', 0)
-	idxNewLine := findInRunes(rs, '\n', 0)
+	idxSpace := util.FindInRunes(rs, ' ', 0)
+	idxNewLine := util.FindInRunes(rs, '\n', 0)
 
 	// Base case
 	// =========
@@ -95,7 +97,7 @@ func (c *Commit) parse(rs []rune) error {
 	// space, so we loop until we find a "\n" not followed by a space.
 	end := 0
 	for {
-		end = findInRunes(rs, '\n', end+1)
+		end = util.FindInRunes(rs, '\n', end+1)
 		if rs[end+1] != ' ' {
 			break
 		}
