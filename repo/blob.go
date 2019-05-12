@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -23,8 +22,8 @@ func createBlob(data []byte) *Blob {
 	return &blob
 }
 
-func (b *Blob) Serialize() ([]byte, error) {
-	return b.data, nil
+func (b *Blob) Serialize() (string, error) {
+	return string(b.data), nil
 }
 
 func (b *Blob) Deserialize(data []byte) error {
@@ -34,9 +33,4 @@ func (b *Blob) Deserialize(data []byte) error {
 
 func (b *Blob) GetFormat() string {
 	return b.format
-}
-
-func (b *Blob) ToObjectBytes() ([]byte, error) {
-	content := fmt.Sprintf("%v %v\x00%v", b.format, len(b.data), string(b.data))
-	return []byte(content), nil
 }

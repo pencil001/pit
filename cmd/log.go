@@ -13,11 +13,11 @@ func init() {
 		Short: "Display history of a given commit.",
 		Args:  cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			head := "HEAD"
+			objSHA := "HEAD"
 			if len(args) == 1 {
-				head = args[0]
+				objSHA = args[0]
 			}
-			log := repo.Log(head)
+			log := repo.Log(objSHA)
 			fmt.Println(log)
 		},
 	}

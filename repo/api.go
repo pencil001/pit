@@ -73,7 +73,7 @@ func Hash(filePath string, objType string, isStore bool) string {
 		}
 	}
 
-	bs, err := obj.ToObjectBytes()
+	bs, err := repo.encodeObject(obj)
 	if err != nil {
 		log.Panic(err)
 	}

@@ -1,8 +1,7 @@
 package repo
 
 type Object interface {
-	Serialize() ([]byte, error)
+	Serialize() (string, error)
 	Deserialize(data []byte) error
 	GetFormat() string
-	ToObjectBytes() ([]byte, error)
 }

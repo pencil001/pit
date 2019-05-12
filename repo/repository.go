@@ -103,7 +103,7 @@ func (r *Repository) initGitDir() error {
 }
 
 func (r *Repository) saveObject(obj Object) error {
-	content, err := obj.ToObjectBytes()
+	content, err := r.encodeObject(obj)
 	if err != nil {
 		return err
 	}
@@ -125,6 +125,15 @@ func (r *Repository) saveObject(obj Object) error {
 		return err
 	}
 	return nil
+}
+
+func (r *Repository) encodeObject(obj Object) ([]byte, error) {
+	str, err := obj.Serialize()
+	if err != nil {
+		return nil, err
+	}
+	content := fmt.Sprintf("%v %v\x00%v", obj.GetFormat(), len(str), str)
+	return []byte(content), nil
 }
 
 func (r *Repository) readObject(objSHA string, obj Object) error {

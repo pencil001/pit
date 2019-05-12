@@ -32,7 +32,7 @@ func createCommit(data []byte) *Commit {
 	return &commit
 }
 
-func (c *Commit) Serialize() ([]byte, error) {
+func (c *Commit) Serialize() (string, error) {
 	m := ""
 	var sb strings.Builder
 	for _, kl := range c.kvlm {
@@ -48,7 +48,7 @@ func (c *Commit) Serialize() ([]byte, error) {
 		}
 	}
 	sb.WriteString(fmt.Sprintf("\n%v", m))
-	return []byte(sb.String()), nil
+	return sb.String(), nil
 }
 
 func (c *Commit) Deserialize(data []byte) error {
@@ -57,15 +57,6 @@ func (c *Commit) Deserialize(data []byte) error {
 
 func (c *Commit) GetFormat() string {
 	return c.format
-}
-
-func (c *Commit) ToObjectBytes() ([]byte, error) {
-	bs, err := c.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	content := fmt.Sprintf("%v %v\x00%v", c.format, len(bs), string(bs))
-	return []byte(content), nil
 }
 
 func (c *Commit) parse(rs []rune) error {
