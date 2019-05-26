@@ -28,7 +28,7 @@ gpgsig -----BEGIN PGP SIGNATURE-----
 
 Create first draft
 `
-	c := createCommit([]byte(str))
+	c := createCommit(nil, []byte(str))
 	fmt.Printf("%#v\n\n", c.kvlm)
 
 	bs, err := c.Serialize()

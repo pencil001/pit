@@ -14,22 +14,26 @@ type KList struct {
 }
 
 type Commit struct {
-	format string
-	kvlm   []KList
+	BaseObject
+	kvlm []KList
 }
 
-func createCommit(data []byte) *Commit {
-	commit := Commit{
-		format: TypeCommit,
-		kvlm:   []KList{},
+func createCommit(repo *Repository, data []byte) *Commit {
+	commit := &Commit{
+		BaseObject: BaseObject{
+			repo:   repo,
+			format: TypeCommit,
+		},
+		kvlm: []KList{},
 	}
+	commit.BaseObject.Object = commit
 	if data != nil {
 		err := commit.Deserialize(data)
 		if err != nil {
 			log.Panic(err)
 		}
 	}
-	return &commit
+	return commit
 }
 
 func (c *Commit) Serialize() (string, error) {
@@ -53,10 +57,6 @@ func (c *Commit) Serialize() (string, error) {
 
 func (c *Commit) Deserialize(data []byte) error {
 	return c.parse([]rune(string(data)))
-}
-
-func (c *Commit) GetFormat() string {
-	return c.format
 }
 
 func (c *Commit) parse(rs []rune) error {

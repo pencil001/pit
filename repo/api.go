@@ -60,20 +60,22 @@ func Hash(filePath string, objType string, isStore bool) string {
 	var obj Object
 	switch objType {
 	case TypeBlob:
-		obj = createBlob(fileData)
+		obj = createBlob(repo, fileData)
 	case TypeCommit:
-		obj = createCommit(fileData)
+		obj = createCommit(repo, fileData)
+	case TypeTree:
+		obj = createTree(repo, fileData)
 	default:
 		log.Panicf("Unknown type: %v", objType)
 	}
 
 	if isStore {
-		if err := repo.saveObject(obj); err != nil {
+		if err := obj.Save(); err != nil {
 			log.Panic(err)
 		}
 	}
 
-	bs, err := repo.encodeObject(obj)
+	bs, err := obj.Encode()
 	if err != nil {
 		log.Panic(err)
 	}
@@ -86,14 +88,16 @@ func Cat(objType string, objSHA string) string {
 	var obj Object
 	switch objType {
 	case TypeBlob:
-		obj = createBlob(nil)
+		obj = createBlob(repo, nil)
 	case TypeCommit:
-		obj = createCommit(nil)
+		obj = createCommit(repo, nil)
+	case TypeTree:
+		obj = createTree(repo, nil)
 	default:
 		log.Panicf("Unknown type: %v", objType)
 	}
 
-	err := repo.readObject(objSHA, obj)
+	err := obj.Read(objSHA)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -105,14 +109,56 @@ func Cat(objType string, objSHA string) string {
 	return string(bs)
 }
 
-func Log(head string) string {
+func Log(objSHA string) string {
 	repo := findRepo(".")
 
 	var sb strings.Builder
 	sb.WriteString("digraph pit{\n")
-	graphvizLog(&sb, repo, head, map[string]bool{})
+	graphvizLog(&sb, repo, objSHA, map[string]bool{})
 	sb.WriteString("}\n")
 	return sb.String()
+}
+
+func ListTree(objSHA string) string {
+	var err error
+
+	repo := findRepo(".")
+	obj, err := repo.readObject(objSHA)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	format := obj.GetFormat()
+	if format != TypeCommit && format != TypeTree {
+		log.Panic("not a tree object")
+	}
+
+	var str string
+	if format == TypeTree {
+		tree := obj.(*Tree)
+		str, err = tree.Display()
+		if err != nil {
+			log.Panic(err)
+		}
+	}
+	if format == TypeCommit {
+		commit := obj.(*Commit)
+		for _, kv := range commit.kvlm {
+			if kv.key == "tree" {
+				treeSHA := kv.list[0]
+				tree := createTree(repo, nil)
+				if err := tree.Read(treeSHA); err != nil {
+					log.Panic(err)
+				}
+				str, err = tree.Display()
+				if err != nil {
+					log.Panic(err)
+				}
+				break
+			}
+		}
+	}
+	return str
 }
 
 func findRepo(repoPath string) *Repository {
@@ -144,8 +190,8 @@ func graphvizLog(sb *strings.Builder, repo *Repository, sha string, seen map[str
 	}
 	seen[sha] = true
 
-	commit := createCommit(nil)
-	err := repo.readObject(sha, commit)
+	commit := createCommit(repo, nil)
+	err := commit.Read(sha)
 	if err != nil {
 		log.Panic(err)
 	}

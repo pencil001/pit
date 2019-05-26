@@ -5,21 +5,26 @@ import (
 )
 
 type Blob struct {
-	format string
-	data   []byte
+	BaseObject
+	data []byte
 }
 
-func createBlob(data []byte) *Blob {
-	blob := Blob{
-		format: TypeBlob,
+func createBlob(repo *Repository, data []byte) *Blob {
+	blob := &Blob{
+		BaseObject: BaseObject{
+			repo:   repo,
+			format: TypeBlob,
+		},
+		data: []byte{},
 	}
+	blob.BaseObject.Object = blob
 	if data != nil {
 		err := blob.Deserialize(data)
 		if err != nil {
 			log.Panic(err)
 		}
 	}
-	return &blob
+	return blob
 }
 
 func (b *Blob) Serialize() (string, error) {
@@ -29,8 +34,4 @@ func (b *Blob) Serialize() (string, error) {
 func (b *Blob) Deserialize(data []byte) error {
 	b.data = data
 	return nil
-}
-
-func (b *Blob) GetFormat() string {
-	return b.format
 }

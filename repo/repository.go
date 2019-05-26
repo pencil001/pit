@@ -102,50 +102,37 @@ func (r *Repository) initGitDir() error {
 	return nil
 }
 
-func (r *Repository) saveObject(obj Object) error {
-	content, err := r.encodeObject(obj)
-	if err != nil {
-		return err
-	}
-	sha := util.CalcSHA(content)
-	objDir := path.Join(r.gitDir, "objects", sha[:2])
-	if err := util.CreateDir(objDir); err != nil {
-		return err
-	}
-	fObj, err := util.CreateFile(path.Join(objDir, sha[2:]))
-	if err != nil {
-		return err
-	}
-	defer fObj.Close()
-
-	w := zlib.NewWriter(fObj)
-	defer w.Close()
-	_, err = w.Write(content)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *Repository) encodeObject(obj Object) ([]byte, error) {
-	str, err := obj.Serialize()
+func (r *Repository) readObject(objSHA string) (Object, error) {
+	format, content, err := r.parseObject(objSHA)
 	if err != nil {
 		return nil, err
 	}
-	content := fmt.Sprintf("%v %v\x00%v", obj.GetFormat(), len(str), str)
-	return []byte(content), nil
+
+	var obj Object
+	switch format {
+	case TypeBlob:
+		obj = createBlob(r, nil)
+	case TypeCommit:
+		obj = createCommit(r, nil)
+	case TypeTree:
+		obj = createTree(r, nil)
+	}
+	if err := obj.Deserialize([]byte(content)); err != nil {
+		return nil, err
+	}
+	return obj, nil
 }
 
-func (r *Repository) readObject(objSHA string, obj Object) error {
+func (r *Repository) parseObject(objSHA string) (string, string, error) {
 	objFile := path.Join(r.gitDir, "objects", objSHA[:2], objSHA[2:])
 	isExist, err := util.IsExist(objFile)
 	if err != nil || !isExist {
-		return fmt.Errorf("Objects file %v missing", objFile)
+		return "", "", fmt.Errorf("Objects file %v missing", objFile)
 	}
 
 	fObj, err := os.Open(objFile)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	defer fObj.Close()
 
@@ -161,21 +148,16 @@ func (r *Repository) readObject(objSHA string, obj Object) error {
 
 	idxSpace := strings.Index(objContent, " ")
 	format := objContent[:idxSpace]
-	if format != obj.GetFormat() {
-		return fmt.Errorf("Type is not correct: %v", format)
-	}
 
 	idxZero := strings.Index(objContent, "\x00")
 	strSize := objContent[idxSpace+1 : idxZero]
 	size, err := strconv.Atoi(strSize)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	if size != len(objContent)-idxZero-1 {
-		return fmt.Errorf("Malformed object %v: bad length", objSHA)
+		return "", "", fmt.Errorf("Malformed object %v: bad length", objSHA)
 	}
-	if err := obj.Deserialize([]byte(objContent[idxZero+1:])); err != nil {
-		return err
-	}
-	return nil
+
+	return format, objContent[idxZero+1:], nil
 }
