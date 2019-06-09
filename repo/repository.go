@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -100,6 +101,56 @@ func (r *Repository) initGitDir() error {
 	iniFile.WriteTo(fConfig)
 
 	return nil
+}
+
+func (r *Repository) getRefs() (map[string]string, error) {
+	refs := make(map[string]string)
+	if err := r.searchRefs(r.gitDir, "refs", refs); err != nil {
+		return nil, err
+	}
+	return refs, nil
+}
+
+func (r *Repository) searchRefs(rootPath string, prefix string, refs map[string]string) error {
+	entries, err := ioutil.ReadDir(path.Join(rootPath, prefix))
+	if err != nil {
+		return err
+	}
+
+	for _, f := range entries {
+		if f.IsDir() {
+			if err := r.searchRefs(rootPath, path.Join(prefix, f.Name()), refs); err != nil {
+				return err
+			}
+		} else {
+			key := path.Join(prefix, f.Name())
+			sha, err := r.readRef(rootPath, key, refs)
+			if err != nil {
+				return err
+			}
+			refs[key] = sha
+		}
+	}
+	return nil
+}
+
+func (r *Repository) readRef(rootPath string, prefix string, refs map[string]string) (string, error) {
+	if sha, ok := refs[prefix]; ok {
+		return sha, nil
+	}
+
+	bs, err := ioutil.ReadFile(path.Join(rootPath, prefix))
+	if err != nil {
+		return "", err
+	}
+
+	// must drop \n at the end of line
+	// otherwise content[5:] will contain the newline, then the filename is incorrect
+	content := strings.TrimSpace(string(bs))
+	if strings.HasPrefix(content, "ref: ") {
+		return r.readRef(rootPath, content[5:], refs)
+	}
+	return content, nil
 }
 
 func (r *Repository) readObject(objSHA string) (Object, error) {

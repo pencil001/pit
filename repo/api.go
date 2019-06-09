@@ -185,6 +185,22 @@ func Checkout(objSHA string, dir string) {
 	}
 }
 
+func ShowRefs() string {
+	repo := findRepo(".")
+
+	refs, err := repo.getRefs()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// TODO: sort key
+	var sb strings.Builder
+	for k, v := range refs {
+		sb.WriteString(fmt.Sprintf("%v %v\n", v, k))
+	}
+	return sb.String()
+}
+
 func checkoutTree(treeObj Object, dir string) error {
 	tree := treeObj.(*Tree)
 	for _, leaf := range tree.leaves {
