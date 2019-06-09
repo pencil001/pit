@@ -1,6 +1,9 @@
 package util
 
-import "os"
+import (
+	"io/ioutil"
+	"os"
+)
 
 func IsExist(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -19,6 +22,14 @@ func IsDir(path string) (bool, error) {
 		return false, err
 	}
 	return f.IsDir(), nil
+}
+
+func IsEmptyDir(path string) (bool, error) {
+	entries, err := ioutil.ReadDir(path)
+	if err != nil {
+		return false, err
+	}
+	return len(entries) == 0, nil
 }
 
 func CreateDir(path string) error {

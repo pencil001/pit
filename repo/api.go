@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -143,22 +144,121 @@ func ListTree(objSHA string) string {
 	}
 	if format == TypeCommit {
 		commit := obj.(*Commit)
-		for _, kv := range commit.kvlm {
-			if kv.key == "tree" {
-				treeSHA := kv.list[0]
-				tree := createTree(repo, nil)
-				if err := tree.Read(treeSHA); err != nil {
-					log.Panic(err)
-				}
-				str, err = tree.Display()
-				if err != nil {
-					log.Panic(err)
-				}
-				break
-			}
+		tree := getTreeByCommit(commit)
+		if tree == nil {
+			log.Panic("No tree in commit")
+		}
+		str, err = tree.Display()
+		if err != nil {
+			log.Panic(err)
 		}
 	}
 	return str
+}
+
+func Checkout(objSHA string, dir string) {
+	repo := findRepo(".")
+	obj, err := repo.readObject(objSHA)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	format := obj.GetFormat()
+	if format == TypeCommit {
+		commit := obj.(*Commit)
+		obj = getTreeByCommit(commit)
+		format = obj.GetFormat()
+		if obj == nil {
+			log.Panic("No tree in commit")
+		}
+	}
+
+	if err := ensureEmptyDir(dir); err != nil {
+		log.Panic(err)
+	}
+
+	switch format {
+	case TypeTree:
+		if err := checkoutTree(obj, dir); err != nil {
+			log.Panic(err)
+		}
+	}
+}
+
+func checkoutTree(treeObj Object, dir string) error {
+	tree := treeObj.(*Tree)
+	for _, leaf := range tree.leaves {
+		subObj, err := tree.repo.readObject(leaf.sha)
+		if err != nil {
+			return err
+		}
+
+		destPath := path.Join(dir, leaf.path)
+		switch subObj.GetFormat() {
+		case TypeBlob:
+			if err := checkoutBlob(subObj, destPath); err != nil {
+				return err
+			}
+		case TypeTree:
+			if err := ensureEmptyDir(destPath); err != nil {
+				return err
+			}
+			if err := checkoutTree(subObj, destPath); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func checkoutBlob(blobObj Object, filePath string) error {
+	fBlob, err := util.CreateFile(filePath)
+	if err != nil {
+		return err
+	}
+	defer fBlob.Close()
+
+	content, err := blobObj.Serialize()
+	if err != nil {
+		return err
+	}
+	fBlob.WriteString(content)
+	return nil
+}
+
+func ensureEmptyDir(dir string) error {
+	isExist, err := util.IsExist(dir)
+	if err != nil {
+		return err
+	}
+	if !isExist {
+		if err := util.CreateDir(dir); err != nil {
+			return err
+		}
+	}
+
+	isEmpty, err := util.IsEmptyDir(dir)
+	if err != nil {
+		return err
+	}
+	if !isEmpty {
+		return errors.New("This dir is not empty")
+	}
+	return nil
+}
+
+func getTreeByCommit(commit *Commit) *Tree {
+	for _, kv := range commit.kvlm {
+		if kv.key == "tree" {
+			treeSHA := kv.list[0]
+			tree := createTree(commit.repo, nil)
+			if err := tree.Read(treeSHA); err != nil {
+				log.Panic(err)
+			}
+			return tree
+		}
+	}
+	return nil
 }
 
 func findRepo(repoPath string) *Repository {
