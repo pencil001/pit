@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"fmt"
-
-	"github.com/pencil001/pit/util"
+	"log"
 
 	"github.com/pencil001/pit/repo"
+	"github.com/pencil001/pit/util"
 	"github.com/spf13/cobra"
 )
 
@@ -18,7 +18,7 @@ func init() {
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if !util.ObjectIn([]string{repo.TypeBlob, repo.TypeCommit, repo.TypeTag, repo.TypeTree}, objType) {
-				fmt.Errorf("Unknown type: %v", objType)
+				log.Panicf("Unknown type: %v", objType)
 			}
 			file := args[0]
 			hash := repo.Hash(file, objType, isStore)

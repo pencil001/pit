@@ -124,11 +124,11 @@ func (r *Repository) searchRefs(rootPath string, prefix string, refs map[string]
 			}
 		} else {
 			key := path.Join(prefix, f.Name())
-			sha, err := r.readRef(rootPath, key, refs)
+			hash, err := r.readRef(rootPath, key, refs)
 			if err != nil {
 				return err
 			}
-			refs[key] = sha
+			refs[key] = hash
 		}
 	}
 	return nil
@@ -146,11 +146,11 @@ func (r *Repository) readRef(rootPath string, prefix string, refs map[string]str
 
 	// must drop \n at the end of line
 	// otherwise content[5:] will contain the newline, then the filename is incorrect
-	content := strings.TrimSpace(string(bs))
-	if strings.HasPrefix(content, "ref: ") {
-		return r.readRef(rootPath, content[5:], refs)
+	hash := strings.TrimSpace(string(bs))
+	if strings.HasPrefix(hash, "ref: ") {
+		return r.readRef(rootPath, hash[5:], refs)
 	}
-	return content, nil
+	return hash, nil
 }
 
 func (r *Repository) readObject(objSHA string) (Object, error) {
@@ -167,6 +167,8 @@ func (r *Repository) readObject(objSHA string) (Object, error) {
 		obj = createCommit(r, nil)
 	case TypeTree:
 		obj = createTree(r, nil)
+	case TypeTag:
+		obj = createTag(r, nil)
 	}
 	if err := obj.Deserialize([]byte(content)); err != nil {
 		return nil, err

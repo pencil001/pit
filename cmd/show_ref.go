@@ -13,7 +13,7 @@ func init() {
 		Short: "List references.",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			refs := repo.ShowRefs()
+			refs := repo.ShowRefs("", true)
 			fmt.Println(refs)
 		},
 	}

@@ -94,6 +94,8 @@ func Cat(objType string, objSHA string) string {
 		obj = createCommit(repo, nil)
 	case TypeTree:
 		obj = createTree(repo, nil)
+	case TypeTag:
+		obj = createTag(repo, nil)
 	default:
 		log.Panicf("Unknown type: %v", objType)
 	}
@@ -185,7 +187,7 @@ func Checkout(objSHA string, dir string) {
 	}
 }
 
-func ShowRefs() string {
+func ShowRefs(prefix string, withHash bool) string {
 	repo := findRepo(".")
 
 	refs, err := repo.getRefs()
@@ -196,9 +198,26 @@ func ShowRefs() string {
 	// TODO: sort key
 	var sb strings.Builder
 	for k, v := range refs {
-		sb.WriteString(fmt.Sprintf("%v %v\n", v, k))
+		if strings.HasPrefix(k, prefix) {
+			k = strings.TrimPrefix(k, prefix)
+			if withHash {
+				sb.WriteString(fmt.Sprintf("%v %v\n", v, k))
+			} else {
+				sb.WriteString(fmt.Sprintf("%v\n", k))
+			}
+		}
 	}
 	return sb.String()
+}
+
+func ShowOrNewTag(tagName string, objSHA string, isLightWeight bool) string {
+	if tagName == "" {
+		return ShowRefs("refs/tags/", false)
+	}
+
+	// TODO: add tag
+	// repo := findRepo(".")
+	return ""
 }
 
 func checkoutTree(treeObj Object, dir string) error {
