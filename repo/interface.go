@@ -11,7 +11,7 @@ import (
 
 type Object interface {
 	Read(objSHA string) error
-	Save() error
+	Save() (string, error)
 	Encode() ([]byte, error)
 	Serialize() (string, error)
 	Deserialize(data []byte) error
@@ -41,22 +41,22 @@ func (bo *BaseObject) Read(objSHA string) error {
 	return nil
 }
 
-func (bo *BaseObject) Save() error {
+func (bo *BaseObject) Save() (string, error) {
 	if bo.repo == nil {
 		log.Panic("Repo mustn't be null")
 	}
 	content, err := bo.Encode()
 	if err != nil {
-		return err
+		return "", err
 	}
 	sha := util.CalcSHA(content)
 	objDir := path.Join(bo.repo.gitDir, "objects", sha[:2])
 	if err := util.CreateDir(objDir); err != nil {
-		return err
+		return "", err
 	}
 	fObj, err := util.CreateFile(path.Join(objDir, sha[2:]))
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer fObj.Close()
 
@@ -64,9 +64,9 @@ func (bo *BaseObject) Save() error {
 	defer w.Close()
 	_, err = w.Write(content)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return sha, nil
 }
 
 func (bo *BaseObject) Encode() ([]byte, error) {

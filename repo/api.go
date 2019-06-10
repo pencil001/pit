@@ -66,21 +66,26 @@ func Hash(filePath string, objType string, isStore bool) string {
 		obj = createCommit(repo, fileData)
 	case TypeTree:
 		obj = createTree(repo, fileData)
+	case TypeTag:
+		obj = createTag(repo, fileData)
 	default:
 		log.Panicf("Unknown type: %v", objType)
 	}
 
+	sha := ""
 	if isStore {
-		if err := obj.Save(); err != nil {
+		sha, err = obj.Save()
+		if err != nil {
 			log.Panic(err)
 		}
+	} else {
+		bs, err := obj.Encode()
+		if err != nil {
+			log.Panic(err)
+		}
+		sha = util.CalcSHA(bs)
 	}
-
-	bs, err := obj.Encode()
-	if err != nil {
-		log.Panic(err)
-	}
-	return util.CalcSHA(bs)
+	return sha
 }
 
 func Cat(objType string, objSHA string) string {
@@ -219,6 +224,24 @@ func ShowOrNewTag(tagName string, objSHA string, isCreateObject bool) string {
 	repo := findRepo(".")
 	if !isCreateObject {
 		if err := repo.writeRef(path.Join("refs", "tags", tagName), objSHA); err != nil {
+			log.Panic(err)
+		}
+	} else {
+		tag := createTag(repo, nil)
+		tag.kvlm = []KList{
+			KList{key: "object", list: []string{objSHA}},
+			KList{key: "type", list: []string{TypeCommit}},
+			KList{key: "tag", list: []string{"vincent"}},
+			KList{key: "tagger", list: []string{"vincent <pencil.xu@gmail.com>"}},
+			KList{key: "", list: []string{"This is the commit message that should have come from the user\n"}},
+		}
+
+		sha, err := tag.Save()
+		if err != nil {
+			log.Panic(err)
+		}
+
+		if err := repo.writeRef(path.Join("refs", "tags", tagName), sha); err != nil {
 			log.Panic(err)
 		}
 	}
