@@ -210,13 +210,18 @@ func ShowRefs(prefix string, withHash bool) string {
 	return sb.String()
 }
 
-func ShowOrNewTag(tagName string, objSHA string, isLightWeight bool) string {
+func ShowOrNewTag(tagName string, objSHA string, isCreateObject bool) string {
 	if tagName == "" {
 		return ShowRefs("refs/tags/", false)
 	}
 
 	// TODO: add tag
-	// repo := findRepo(".")
+	repo := findRepo(".")
+	if !isCreateObject {
+		if err := repo.writeRef(path.Join("refs", "tags", tagName), objSHA); err != nil {
+			log.Panic(err)
+		}
+	}
 	return ""
 }
 

@@ -105,26 +105,26 @@ func (r *Repository) initGitDir() error {
 
 func (r *Repository) getRefs() (map[string]string, error) {
 	refs := make(map[string]string)
-	if err := r.searchRefs(r.gitDir, "refs", refs); err != nil {
+	if err := r.searchRefs("refs", refs); err != nil {
 		return nil, err
 	}
 	return refs, nil
 }
 
-func (r *Repository) searchRefs(rootPath string, prefix string, refs map[string]string) error {
-	entries, err := ioutil.ReadDir(path.Join(rootPath, prefix))
+func (r *Repository) searchRefs(prefix string, refs map[string]string) error {
+	entries, err := ioutil.ReadDir(path.Join(r.gitDir, prefix))
 	if err != nil {
 		return err
 	}
 
 	for _, f := range entries {
 		if f.IsDir() {
-			if err := r.searchRefs(rootPath, path.Join(prefix, f.Name()), refs); err != nil {
+			if err := r.searchRefs(path.Join(prefix, f.Name()), refs); err != nil {
 				return err
 			}
 		} else {
 			key := path.Join(prefix, f.Name())
-			hash, err := r.readRef(rootPath, key, refs)
+			hash, err := r.readRef(key, refs)
 			if err != nil {
 				return err
 			}
@@ -134,12 +134,12 @@ func (r *Repository) searchRefs(rootPath string, prefix string, refs map[string]
 	return nil
 }
 
-func (r *Repository) readRef(rootPath string, prefix string, refs map[string]string) (string, error) {
+func (r *Repository) readRef(prefix string, refs map[string]string) (string, error) {
 	if sha, ok := refs[prefix]; ok {
 		return sha, nil
 	}
 
-	bs, err := ioutil.ReadFile(path.Join(rootPath, prefix))
+	bs, err := ioutil.ReadFile(path.Join(r.gitDir, prefix))
 	if err != nil {
 		return "", err
 	}
@@ -148,9 +148,19 @@ func (r *Repository) readRef(rootPath string, prefix string, refs map[string]str
 	// otherwise content[5:] will contain the newline, then the filename is incorrect
 	hash := strings.TrimSpace(string(bs))
 	if strings.HasPrefix(hash, "ref: ") {
-		return r.readRef(rootPath, hash[5:], refs)
+		return r.readRef(hash[5:], refs)
 	}
 	return hash, nil
+}
+
+func (r *Repository) writeRef(prefix string, hash string) error {
+	fRef, err := util.CreateFile(path.Join(r.gitDir, prefix))
+	if err != nil {
+		return err
+	}
+	defer fRef.Close()
+	_, err = fRef.WriteString(fmt.Sprintf("%v\n", hash))
+	return err
 }
 
 func (r *Repository) readObject(objSHA string) (Object, error) {

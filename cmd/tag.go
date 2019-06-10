@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	var isLightWeight bool
+	var isCreateObject bool
 	tagCmd := &cobra.Command{
 		Use:   "tag [name] [object]",
 		Short: "List and create tags.",
@@ -22,10 +22,10 @@ func init() {
 			if len(args) >= 2 {
 				objSHA = args[1]
 			}
-			tags := repo.ShowOrNewTag(tagName, objSHA, isLightWeight)
+			tags := repo.ShowOrNewTag(tagName, objSHA, isCreateObject)
 			fmt.Println(tags)
 		},
 	}
-	tagCmd.Flags().BoolVarP(&isLightWeight, "add", "a", false, "Whether to create a tag object")
+	tagCmd.Flags().BoolVarP(&isCreateObject, "add", "a", false, "Whether to create a tag object")
 	RootCmd.AddCommand(tagCmd)
 }
